@@ -51,12 +51,12 @@ Base.metadata.create_all(bind=engine)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 app = FastAPI(title="Gelişmiş HCC Erken Teşhis Sistemi API", version="1.0.0")
 
-# CORS ayarları - daha esnek
+# CORS ayarları - Frontend domain'i dahil
 origins = [
     "http://localhost:3000",
-    "http://127.0.0.1:3000", 
-    "https://your-frontend-domain.com",  # Frontend URL'nizi buraya ekleyin
-    "https://hcc-web-design-api-mafs.onrender.com"
+    "http://127.0.0.1:3000",
+    "https://hcc-web-design-1-k3yg.onrender.com",  # Frontend URL'niz
+    "https://hcc-web-design-api-mafs.onrender.com"  # Backend URL'niz
 ]
 
 app.add_middleware(
