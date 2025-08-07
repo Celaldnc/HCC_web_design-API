@@ -51,20 +51,30 @@ Base.metadata.create_all(bind=engine)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 app = FastAPI(title="Gelişmiş HCC Erken Teşhis Sistemi API", version="1.0.0")
 
-# CORS ayarları - daha geniş
+# CORS ayarları - daha esnek
 origins = [
-    "http://localhost",
     "http://localhost:3000",
-    "http://localhost:8000",
-    "https://hcc-web-design-api-mafs.onrender.com",
-    "*"  # Geliştirme için
+    "http://127.0.0.1:3000", 
+    "https://your-frontend-domain.com",  # Frontend URL'nizi buraya ekleyin
+    "https://hcc-web-design-api-mafs.onrender.com"
 ]
+
 app.add_middleware(
     CORSMiddleware, 
-    allow_origins=origins, 
-    allow_credentials=True, 
-    allow_methods=["*"], 
-    allow_headers=["*"]
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "accept",
+        "accept-encoding", 
+        "authorization",
+        "content-type",
+        "dnt",
+        "origin",
+        "user-agent",
+        "x-csrftoken",
+        "x-requested-with",
+    ]
 )
 
 # --- MODEL ve DOSYA YOLLARI ---
@@ -210,14 +220,35 @@ async def predict_mri_analysis(file_bytes: bytes, original_filename: str, pst_sc
 async def load_models_on_startup():
     global model_lab, scaler_lab, model_usg, model_mri
     print("--- Makine Öğrenmesi Modelleri Yükleniyor ---")
+    
+    # Lab modeli ve scaler (güvenli)
     try:
-        if os.path.exists(LAB_MODEL_PATH): model_lab = joblib.load(LAB_MODEL_PATH)
-        if os.path.exists(LAB_SCALER_PATH): scaler_lab = joblib.load(LAB_SCALER_PATH)
-        if os.path.exists(USG_MODEL_PATH): model_usg = tf.keras.models.load_model(USG_MODEL_PATH, compile=False)
-        if os.path.exists(MRI_MODEL_PATH): model_mri = tf.keras.models.load_model(MRI_MODEL_PATH, compile=False)
-        print("✅ Lab, USG, MRI Modelleri: Yüklendi")
+        if os.path.exists(LAB_MODEL_PATH): 
+            model_lab = joblib.load(LAB_MODEL_PATH)
+            print("✅ Lab Modeli: Yüklendi")
+        if os.path.exists(LAB_SCALER_PATH): 
+            scaler_lab = joblib.load(LAB_SCALER_PATH)
+            print("✅ Lab Scaler: Yüklendi")
     except Exception as e:
-        print(f"HATA: ML modelleri yüklenirken bir sorun oluştu: {e}")
+        print(f"⚠️ UYARI: Lab modeli yüklenemedi: {e}")
+    
+    # USG modeli (TensorFlow - daha dikkatli)
+    try:
+        if os.path.exists(USG_MODEL_PATH): 
+            model_usg = tf.keras.models.load_model(USG_MODEL_PATH, compile=False)
+            print("✅ USG Modeli: Yüklendi")
+    except Exception as e:
+        print(f"⚠️ UYARI: USG modeli yüklenemedi: {e}")
+        model_usg = None
+    
+    # MRI modeli (TensorFlow - daha dikkatli)
+    try:
+        if os.path.exists(MRI_MODEL_PATH): 
+            model_mri = tf.keras.models.load_model(MRI_MODEL_PATH, compile=False)
+            print("✅ MRI Modeli: Yüklendi")
+    except Exception as e:
+        print(f"⚠️ UYARI: MRI modeli yüklenemedi: {e}")
+        model_mri = None
     
     # LLM servislerini güvenli şekilde yükle
     if LLM_SERVICES_AVAILABLE:
