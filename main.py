@@ -49,9 +49,23 @@ except ImportError as e:
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 Base.metadata.create_all(bind=engine)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-app = FastAPI(title="Gelişmiş HCC Erken Teşhis Sistemi API")
-origins = ["http://localhost", "http://localhost:3000"]
-app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app = FastAPI(title="Gelişmiş HCC Erken Teşhis Sistemi API", version="1.0.0")
+
+# CORS ayarları - daha geniş
+origins = [
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "https://hcc-web-design-api-mafs.onrender.com",
+    "*"  # Geliştirme için
+]
+app.add_middleware(
+    CORSMiddleware, 
+    allow_origins=origins, 
+    allow_credentials=True, 
+    allow_methods=["*"], 
+    allow_headers=["*"]
+)
 
 # --- MODEL ve DOSYA YOLLARI ---
 LAB_MODEL_PATH = 'hcc_multi_model_xgboost.joblib'
@@ -212,6 +226,27 @@ async def load_models_on_startup():
         print("⚠️ LLM servisleri atlandı (paketler yüklü değil)")
 
 # --- API ENDPOINT'LERİ ---
+
+@app.get("/")
+async def root():
+    return {
+        "message": "HCC Erken Teşhis Sistemi API",
+        "version": "1.0.0", 
+        "status": "active",
+        "docs": "/docs"
+    }
+
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+@app.get("/test")
+async def test():
+    return {"test": "API çalışıyor!", "timestamp": datetime.utcnow().isoformat()}
+
 @app.post("/register", status_code=201)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
@@ -339,6 +374,38 @@ async def evaluate_hcc_risk(
         "vlm_model_used": vlm_report_data.get("model_used"),
         "comprehensive_report": comprehensive_report_data.get("text"),
         "comprehensive_model_used": comprehensive_report_data.get("model_used"),
+    }
+
+# Debug endpoint (sadece geliştirme için)
+@app.get("/debug/info")
+async def debug_info():
+    return {
+        "environment": {
+            "TF_CPP_MIN_LOG_LEVEL": os.environ.get('TF_CPP_MIN_LOG_LEVEL'),
+            "PORT": os.environ.get('PORT'),
+        },
+        "models": {
+            "lab_model_path": LAB_MODEL_PATH,
+            "lab_scaler_path": LAB_SCALER_PATH,
+            "usg_model_path": USG_MODEL_PATH,
+            "mri_model_path": MRI_MODEL_PATH,
+            "files_exist": {
+                "lab_model": os.path.exists(LAB_MODEL_PATH),
+                "lab_scaler": os.path.exists(LAB_SCALER_PATH),
+                "usg_model": os.path.exists(USG_MODEL_PATH),
+                "mri_model": os.path.exists(MRI_MODEL_PATH)
+            }
+        },
+        "llm_status": LLM_SERVICES_AVAILABLE
+    }
+
+# Basit test endpoint
+@app.get("/test")
+async def test_endpoint():
+    return {
+        "message": "API çalışıyor!",
+        "timestamp": datetime.utcnow().isoformat(),
+        "test": "success"
     }
 
 # --- ÇALIŞTIRMA BLOĞU ---
