@@ -23,11 +23,27 @@ from scipy.ndimage import label
 
 # --- Yerel Dosyalar ---
 from database import Base, engine, get_db, User, Patient, Evaluation
-from llm_services import (
-    load_all_llms,
-    generate_radiology_report_vlm,
-    generate_comprehensive_report
-)
+
+# LLM servislerini güvenli import et
+try:
+    from llm_services import (
+        load_all_llms,
+        generate_radiology_report_vlm,
+        generate_comprehensive_report
+    )
+    LLM_SERVICES_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ UYARI: LLM servisleri yüklenemedi: {e}")
+    LLM_SERVICES_AVAILABLE = False
+    # Dummy fonksiyonlar tanımla
+    def load_all_llms():
+        print("LLM servisleri devre dışı")
+    
+    async def generate_radiology_report_vlm(*args, **kwargs):
+        return {"text": "LLM servisleri şu anda kullanılamıyor.", "model_used": "N/A"}
+    
+    async def generate_comprehensive_report(*args, **kwargs):
+        return {"text": "LLM servisleri şu anda kullanılamıyor.", "model_used": "N/A"}
 
 # --- UYGULAMA AYARLARI ---
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -188,7 +204,12 @@ async def load_models_on_startup():
         print("✅ Lab, USG, MRI Modelleri: Yüklendi")
     except Exception as e:
         print(f"HATA: ML modelleri yüklenirken bir sorun oluştu: {e}")
-    load_all_llms()
+    
+    # LLM servislerini güvenli şekilde yükle
+    if LLM_SERVICES_AVAILABLE:
+        load_all_llms()
+    else:
+        print("⚠️ LLM servisleri atlandı (paketler yüklü değil)")
 
 # --- API ENDPOINT'LERİ ---
 @app.post("/register", status_code=201)
@@ -322,4 +343,6 @@ async def evaluate_hcc_risk(
 
 # --- ÇALIŞTIRMA BLOĞU ---
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
