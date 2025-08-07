@@ -5,7 +5,15 @@ import io
 from PIL import Image
 from datetime import datetime
 import google.generativeai as genai
-from groq import Groq, APIStatusError
+
+try:
+    from groq import Groq, APIStatusError
+    GROQ_AVAILABLE = True
+except ImportError:
+    print("⚠️ UYARI: groq paketi yüklü değil. Groq servisleri devre dışı.")
+    GROQ_AVAILABLE = False
+    APIStatusError = Exception
+
 from openai import OpenAI
 
 # --- Yapılandırma ---
@@ -52,12 +60,15 @@ def load_all_llms():
 
     # --- Groq Servisini Başlat ---
     try:
-        GROQ_API_KEY = api_keys.get("GROQ_API_KEY")
-        if GROQ_API_KEY:
-            llm_clients['groq'] = Groq(api_key=GROQ_API_KEY)
-            print("✅ Groq Servisi: Yapılandırıldı")
+        if not GROQ_AVAILABLE:
+            print("⚠️ UYARI: Groq paketi yüklü olmadığı için Groq servisi atlanıyor.")
         else:
-            print("⚠️ UYARI: api_keys.txt dosyasında GROQ_API_KEY bulunamadı.")
+            GROQ_API_KEY = api_keys.get("GROQ_API_KEY")
+            if GROQ_API_KEY:
+                llm_clients['groq'] = Groq(api_key=GROQ_API_KEY)
+                print("✅ Groq Servisi: Yapılandırıldı")
+            else:
+                print("⚠️ UYARI: api_keys.txt dosyasında GROQ_API_KEY bulunamadı.")
     except Exception as e:
         print(f"HATA: Groq servisi başlatılırken bir sorun oluştu: {e}")
 
@@ -84,7 +95,7 @@ def load_all_llms():
 # generate_comprehensive_report fonksiyonlarında hiçbir değişiklik yapmanıza gerek yok.
 # Onlar olduğu gibi kalabilir.
 
-def get_model_info_for_doctor(doctor_name: str) -> (object, str, str):
+def get_model_info_for_doctor(doctor_name: str) -> tuple[object, str, str]:
     """Doktora göre servis istemcisini ve model adını döndürür."""
     print("\n" + "="*40)
     print(f"🔎 DOKTOR-MODEL SEÇİMİ (İstek Zamanı: {datetime.now().strftime('%H:%M:%S')})")
@@ -171,6 +182,8 @@ Aşağıdaki başlıkları kullanarak, yukarıdaki verileri sentezleyen detaylı
             return {"text": response.text, "model_used": model_to_use}
             
         elif service_name == 'groq':
+            if not GROQ_AVAILABLE:
+                return {"text": "Groq servisi kullanılamıyor: Paket yüklü değil.", "model_used": "N/A"}
             model_to_use = 'llama3-70b-8192' if model_name == 'llama3-70b' else 'llama3-8b-8192'
             chat_completion = client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
