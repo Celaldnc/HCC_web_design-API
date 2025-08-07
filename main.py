@@ -56,7 +56,7 @@ origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://hcc-web-design-1-k3yg.onrender.com",  # Frontend URL'niz
-    "https://hcc-web-design-api-mafs.onrender.com"  # Backend URL'niz
+    "https://hcc-web-design-api-mafs.onrender.com/docs"  # Backend URL'niz
 ]
 
 app.add_middleware(
